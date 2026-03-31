@@ -33,6 +33,56 @@ def list_voices() -> List[str]:
         "bm_daniel", "bm_fable", "bm_george", "bm_lewis"
     ]
 
+def _apply_emotion_to_text(text: str, emotion: str) -> str:
+    """
+    Inject punctuation cues into text so Kokoro's model naturally
+    produces more emotional breath patterns and rhythm.
+    Kokoro is trained on real speech — it genuinely responds to these.
+    """
+    e = emotion.lower().strip()
+    
+    # Strip existing markdown and clean up first
+    text = re.sub(r'[\*\_\~]+', '', text).strip()
+    if not text:
+        return text
+    
+    # Add trailing period if missing so sentence ends cleanly
+    if text[-1] not in '.!?,;:':
+        text += '.'
+
+    if e in ("sad", "melancholic"):
+        # Ellipses create natural trailing-off breath and hesitation
+        text = re.sub(r'([,;])\s+', r'\1.. ', text)
+        if text.endswith('.'):
+            text = text[:-1] + '...'
+
+    elif e == "angry":
+        # Em-dashes create sharp clipped stops between thoughts
+        text = re.sub(r'([,;])\s+', r' -- ', text)
+        # Uppercase key exclamations
+        text = re.sub(r'\b(never|stop|no|get out|how dare|enough)\b', 
+                      lambda m: m.group().upper(), text, flags=re.IGNORECASE)
+
+    elif e == "scared":
+        # Short fragmented rhythm — dashes mimic stuttering/panic
+        text = re.sub(r'([,;])\s+', r'-- ', text)
+        text = re.sub(r'([.!?])\s+', r'\1 -- ', text)
+
+    elif e in ("tense", "dramatic"):
+        # Commas amplify the pauses already in text; add one before conjunctions
+        text = re.sub(r'\s+(but|yet|still|however)\s+', r', \1 ', text, flags=re.IGNORECASE)
+
+    elif e == "romantic":
+        # Soft trailing ellipsis on longer phrases
+        if len(text) > 40 and text.endswith('.'):
+            text = text[:-1] + '...'
+
+    elif e == "upbeat":
+        # Upbeat: keep it punchy, strip soft trailing ellipsis if any
+        text = text.replace('...', '.').replace('..', '.')
+
+    return text.strip()
+
 def _sanitize_for_kokoro(text):
     text = re.sub(r'[\*\_\~]+', '', text)
     return text.strip()
@@ -83,18 +133,25 @@ def synthesize_all(
                     completed_count[0] += 1
                     continue
                 
-                # Emotional Prosody SSML Mapping (Kokoro uses speed mapping natively)
-                speed = 0.95
-                e = emotion.lower()
-                if any(x in e for x in ["angry", "furious", "yell", "shout", "mad", "panic", "scare", "terrify", "anxious", "fear"]):
-                    speed = 1.10
-                elif any(x in e for x in ["sad", "cry", "depress", "heartbreak"]):
-                    speed = 0.80
+                # Exact speed mapping for the 10 emotion strings Gemini is instructed to return
+                EMOTION_SPEED = {
+                    "neutral":     0.95,
+                    "happy":       1.10,
+                    "sad":         0.78,
+                    "tense":       1.15,
+                    "dramatic":    1.05,
+                    "romantic":    0.85,
+                    "melancholic": 0.80,
+                    "upbeat":      1.20,
+                    "angry":       1.25,
+                    "scared":      1.20,
+                }
+                speed = EMOTION_SPEED.get(emotion.lower().strip(), 0.95)
                     
                 target_lang = "en-us"
                 if voice.startswith("b"): target_lang = "en-gb"
                 
-                clean_text = _sanitize_for_kokoro(text)
+                clean_text = _apply_emotion_to_text(text, emotion)
                 if not clean_text:
                     continue
                     

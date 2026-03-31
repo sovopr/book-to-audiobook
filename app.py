@@ -210,8 +210,8 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-        '<p style="color:#8b949e;font-size:0.78rem;">TTS powered by <b>edge-tts</b><br>'
-        'Free · Microsoft Neural Voices<br>No API key required</p>',
+        '<p style="color:#8b949e;font-size:0.78rem;">TTS powered by <b>Kokoro-82M ONNX</b><br>'
+        'Free · High Fidelity · Local Inference</p>',
         unsafe_allow_html=True,
     )
 
@@ -456,7 +456,7 @@ with col_right:
 
                 # --- TTS ---
                 tts_prog = st.progress(0, text="🎙️ Synthesizing voices…")
-                st.caption("Generating audio clips via Microsoft Neural Voices (edge-tts)…")
+                st.caption("🎙️ Generating audio clips natively via Kokoro-82M ONNX Engine…")
 
                 def tts_progress(cur, tot):
                     tts_prog.progress(cur / tot, text=f"Synthesizing line {cur}/{tot}…")
