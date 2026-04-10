@@ -67,15 +67,15 @@ def mix_audiobook(
         
         # Generate silence files for pausing
         silence_dir = os.path.dirname(output_path) or "."
-        line_pause_path = os.path.abspath(os.path.join(silence_dir, "fast_line_pause.mp3"))
-        scene_pause_path = os.path.abspath(os.path.join(silence_dir, "fast_scene_pause.mp3"))
+        line_pause_path = os.path.abspath(os.path.join(silence_dir, "fast_line_pause.wav"))
+        scene_pause_path = os.path.abspath(os.path.join(silence_dir, "fast_scene_pause.wav"))
         
         def _ensure_silence(path: str, duration_ms: int):
             if not os.path.exists(path):
                 os.makedirs(os.path.dirname(path), exist_ok=True)
                 subprocess.run([
                     "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono",
-                    "-t", str(duration_ms / 1000.0), "-c:a", "libmp3lame", "-b:a", "192k", path
+                    "-t", str(duration_ms / 1000.0), "-c:a", "pcm_s16le", path
                 ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 
         _ensure_silence(line_pause_path, LINE_PAUSE_MS)
