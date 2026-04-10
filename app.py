@@ -399,22 +399,28 @@ with col_right:
         st.caption("Assign a neural voice to each detected character:")
         voice_map = {}
         for char in st.session_state.characters:
-            # Check auto-map first, then default map
-            default = st.session_state.auto_voice_map.get(char)
-            if not default:
-                default = default_voices.get(char, voices[0] if voices else "af_heart")
-            
-            default_idx = voices.index(default) if default in voices else 0
-            
             st.markdown(f"**🎭 {char}**")
             col1, col2 = st.columns([2, 3])
+            
+            # Prepare kwargs to avoid Streamlit's Session State API warning.
+            # We only supply 'index' if the widget hasn't been instantiated/saved in session_state.
+            widget_key = f"voice_{char}"
+            kwargs = {
+                "options": voices,
+                "key": widget_key,
+                "label_visibility": "collapsed"
+            }
+            if widget_key not in st.session_state:
+                default = st.session_state.auto_voice_map.get(char)
+                if not default:
+                    default = default_voices.get(char, voices[0] if voices else "af_heart")
+                default_idx = voices.index(default) if default in voices else 0
+                kwargs["index"] = default_idx
+
             with col1:
                 voice_map[char] = st.selectbox(
                     "Select Voice",
-                    options=voices,
-                    index=default_idx,
-                    key=f"voice_{char}",
-                    label_visibility="collapsed"
+                    **kwargs
                 )
             with col2:
                 sample_path = os.path.join(os.path.dirname(__file__), "output", "samples", f"{voice_map[char]}.wav")
@@ -527,7 +533,7 @@ with col_right:
 st.markdown("---")
 st.markdown(
     '<p style="text-align:center;color:#8b949e;font-size:0.8rem;">'
-    'Powered by Gemini · edge-tts · pydub &nbsp;|&nbsp; 100% Free TTS · No API key for voices'
+    'Powered by Gemini · Kokoro-onnx · pydub &nbsp;|&nbsp; 100% Free TTS · No API key for voices'
     '</p>',
     unsafe_allow_html=True,
 )

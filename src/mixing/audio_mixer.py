@@ -64,13 +64,38 @@ def mix_audiobook(
         import subprocess
         # Ffmpeg concat demuxer requires a list file
         list_file = output_path + ".list.txt"
-        valid_paths = [p for p in audio_paths if p and os.path.exists(p)]
+        
+        # Generate silence files for pausing
+        silence_dir = os.path.dirname(output_path) or "."
+        line_pause_path = os.path.abspath(os.path.join(silence_dir, "fast_line_pause.mp3"))
+        scene_pause_path = os.path.abspath(os.path.join(silence_dir, "fast_scene_pause.mp3"))
+        
+        def _ensure_silence(path: str, duration_ms: int):
+            if not os.path.exists(path):
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                subprocess.run([
+                    "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono",
+                    "-t", str(duration_ms / 1000.0), "-c:a", "libmp3lame", "-b:a", "192k", path
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                
+        _ensure_silence(line_pause_path, LINE_PAUSE_MS)
+        _ensure_silence(scene_pause_path, SCENE_PAUSE_MS)
+
+        valid_data = [(line, p) for line, p in zip(lines, audio_paths) if p and os.path.exists(p)]
         
         with open(list_file, "w", encoding="utf-8") as f:
-            for p in valid_paths:
+            prev_emotion = None
+            for line, p in valid_data:
                 # Ffmpeg requires absolute paths or relative paths in singles quotes
                 abs_p = os.path.abspath(p)
                 f.write(f"file '{abs_p}'\n")
+                
+                emotion = line.get("emotion", "neutral").lower()
+                pause_ms = SCENE_PAUSE_MS if (prev_emotion and emotion != prev_emotion) else LINE_PAUSE_MS
+                pause_path = scene_pause_path if pause_ms == SCENE_PAUSE_MS else line_pause_path
+                f.write(f"file '{pause_path}'\n")
+                
+                prev_emotion = emotion
                 
         if progress_callback:
             progress_callback(total // 2, total)  # Halfway visual update
